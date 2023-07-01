@@ -1,10 +1,10 @@
-use std::fmt::Write;
+use std::fmt::{self, Display, Formatter, Write};
 use std::ops::{Index, IndexMut};
 
-use crate::Cell;
+use super::Cell;
 
 pub type Iter<'a> =  std::slice::ChunksExact<'a, Cell>;
-pub type IterMut<'a> =  std::slice::ChunksExactMut<'a, Cell>;
+pub type IterMut<'a> = std::slice::ChunksExactMut<'a, Cell>;
 
 /// A 2D matrix representing the current state in Conway's Game of Life.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -16,15 +16,26 @@ pub struct Grid {
 impl Grid {
     #[inline]
     #[must_use]
-    /// Creates a grid of `(rows, columns)` cells in [`Dead`](Cell::Dead) state.
+    /// Creates a grid of `(rows, columns)` cells in the default state.
     ///
     /// # Panics
     ///
     /// If `rows * columns` overflows an `usize`.
     pub fn new(rows: usize, columns: usize) -> Self {
+        Self::new_with(rows, columns, Cell::default())
+    }
+
+    #[inline]
+    #[must_use]
+    /// Creates a grid of `(rows, columns)` cells in the given state.
+    ///
+    /// # Panics
+    ///
+    /// If `rows * columns` overflows an `usize`.
+    pub fn new_with(rows: usize, columns: usize, cell: Cell) -> Self {
         let cells = rows.checked_mul(columns).expect("number of cells overflows usize");
 
-        Self { cells: vec![Default::default(); cells].into(), columns }
+        Self { cells: vec![cell; cells].into(), columns }
     }
 
     #[inline]
@@ -42,7 +53,7 @@ impl Grid {
     /// # Example
     ///
     /// ```
-    /// # use vida::{Cell, Grid};
+    /// # use vida::cell::{Cell, Grid};
     /// #
     /// let grid: Grid = [
     ///     [Cell::Dead, Cell::Live, Cell::Dead],
@@ -288,8 +299,8 @@ impl<'a> IntoIterator for &'a mut Grid {
     }
 }
 
-impl std::fmt::Display for Grid {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Grid {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for row in self.iter() {
             for &cell in row {
                 write!(f, "{cell}")?
@@ -297,6 +308,14 @@ impl std::fmt::Display for Grid {
             f.write_char('\n')?
         }
         Ok(())
+    }
+}
+
+impl Default for Grid {
+    #[inline]
+    #[must_use]
+    fn default() -> Self {
+        Self::empty()
     }
 }
 

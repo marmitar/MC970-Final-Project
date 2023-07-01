@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 rand = { version = "0.8", default-features = true, features = ["default", "small_rng"] }
 rayon = "1.7"
+piston_window = "*"
+clap = { version = "4.3.10", features = ["derive"] }

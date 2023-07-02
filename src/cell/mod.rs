@@ -8,7 +8,7 @@ mod grid;
 pub use grid::{Grid, Iter, IterMut};
 
 /// Represents the state of a single cell in Conways's Game of Life.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Cell {
     #[default]
     /// The cell is currently "unpopulated".

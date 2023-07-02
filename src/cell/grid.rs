@@ -15,7 +15,7 @@ pub type ParIter<'a> = rayon::slice::ChunksExact<'a, Cell>;
 pub type ParIterMut<'a> = rayon::slice::ChunksExactMut<'a, Cell>;
 
 /// A 2D matrix representing the current state in Conway's Game of Life.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Grid {
     cells: Box<[Cell]>,
     columns: usize,

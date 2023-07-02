@@ -1,12 +1,14 @@
+use rayon::prelude::*;
+
 use crate::cell::{Cell, Grid};
 
 use super::Engine;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct SerialEngine;
+pub struct ParallelEngine;
 
-impl SerialEngine {
+impl ParallelEngine {
     #[must_use]
     fn next_cell_at(grid: &Grid, row: usize, col: usize) -> Cell {
         let start_row = row.saturating_sub(1);
@@ -33,19 +35,19 @@ impl SerialEngine {
     fn prepare_next_grid(grid: &Grid) -> Grid {
         let mut next = Grid::new_with(grid.rows(), grid.columns(), Cell::Dead);
 
-        for (row, cells) in next.iter_mut().enumerate() {
-            for (col, cell) in cells.iter_mut().enumerate() {
+        next.par_iter_mut().enumerate().for_each(|(row, cells)| {
+            cells.par_iter_mut().enumerate().for_each(|(col, cell)| {
                 if Self::next_cell_at(grid, row, col).is_live() {
                     *cell = Cell::Live
                 }
-            }
-        }
+            })
+        });
 
         next
     }
 }
 
-impl Engine for SerialEngine {
+impl Engine for ParallelEngine {
     #[inline]
     #[must_use]
     fn update(&self, grid: &Grid) -> Grid {

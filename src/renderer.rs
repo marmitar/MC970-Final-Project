@@ -2,6 +2,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use piston_window::*;
+use rayon::prelude::{IntoParallelRefIterator, IndexedParallelIterator, ParallelIterator};
 
 use crate::cell::Grid;
 use crate::engine::Engine;
@@ -34,7 +35,11 @@ impl<E: Engine> Renderer<E> {
         let elapsed = self.last_update_time.elapsed();
 
         if elapsed >= self.update_interval {
+            let start = Instant::now();
             self.grid = self.engine.update(&self.grid);
+            let elapsed = start.elapsed();
+            eprintln!("{:?}", elapsed);
+
             self.last_update_time = Instant::now();
             Some(())
         } else {
@@ -44,33 +49,38 @@ impl<E: Engine> Renderer<E> {
 
     fn render(&mut self, event: &Event) -> Option<()> {
         self.window.draw_2d(event, |context, graphics, _device| {
-            clear(WHITE, graphics);
+            let cell_size = self.cell_size;
+            let (sender, receiver) = std::sync::mpsc::channel();
 
-            for (y, row) in self.grid.iter().enumerate() {
-                for (x, cell) in row.iter().enumerate() {
+            self.grid.par_iter().enumerate().for_each(move |(row, cells)| {
+                cells.par_iter().enumerate().for_each(|(col, cell)| {
                     if cell.is_live() {
-                        let rect = rectangle::square(x as f64 * self.cell_size, y as f64 * self.cell_size, self.cell_size);
-                        rectangle(BLACK, rect, context.transform, graphics);
+                        let (x, y) = (col as f64, row as f64);
+                        let rect = rectangle::square(x * cell_size, y * cell_size, cell_size);
+                        sender.send(rect).unwrap()
                     }
-                }
+                })
+            });
+
+            clear(WHITE, graphics);
+            for rect in receiver.iter() {
+                rectangle(BLACK, rect, context.transform, graphics);
             }
         })
     }
 
     fn next_event(&mut self) -> Option<Event> {
-        if let Some(event) = self.window.next() {
-            if event.update_args().is_some() {
-                self.update();
-            }
+        let event = self.window.next()?;
 
-            if event.render_args().is_some() {
-                self.render(&event);
-            }
-
-            Some(event)
-        } else {
-            None
+        if event.update_args().is_some() {
+            self.update();
         }
+
+        if event.render_args().is_some() {
+            self.render(&event);
+        }
+
+        Some(event)
     }
 
     pub fn start(mut self) {

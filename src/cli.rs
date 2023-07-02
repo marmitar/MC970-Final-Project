@@ -20,7 +20,7 @@ pub struct Cli {
     pub width: usize,
 
     /// Height of the grid
-    #[arg(long, default_value_t = GRID_HEIGHT)]
+    #[arg(short = 't', long, default_value_t = GRID_HEIGHT)]
     pub height: usize,
 }
 

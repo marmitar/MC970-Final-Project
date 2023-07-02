@@ -28,6 +28,6 @@ pub struct Cli {
 pub enum Mode {
     /// Serial Mode
     Serial,
-    /// Paralell Mode
-    Paralell,
+    /// Parallel Mode
+    Parallel,
 }

@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::time::{Duration, Instant};
 
 use piston_window::*;
@@ -11,31 +12,38 @@ pub struct Renderer<E> {
     engine: E,
     grid: Grid,
     update_interval: Duration, // The duration of the delay between updates
+    last_update_time: Instant,
 }
 
 const BLACK: types::Color = [0.0, 0.0, 0.0, 1.0];
 const WHITE: types::Color = [1.0, 1.0, 1.0, 1.0];
 
 impl<E: Engine> Renderer<E> {
-    pub fn new(cell_size: f64, engine: E, grid: Grid, update_interval: Duration) -> Self {
-        let width = grid.columns() as f64;
-        let height = grid.rows() as f64;
-        let window: PistonWindow = WindowSettings::new("Conway's Game of Life", [cell_size * width, cell_size * height])
+    pub fn new(cell_size: f64, engine: E, grid: Grid, update_interval: Duration) -> Result<Self, Box<dyn Error>> {
+        let (width, height) = (grid.columns() as f64, grid.rows() as f64);
+        let window = WindowSettings::new("Conway's Game of Life", [cell_size * width, cell_size * height])
             .exit_on_esc(true)
-            .build()
-            .unwrap();
+            .build()?;
 
-        Self {
-            window,
-            cell_size,
-            engine,
-            grid,
-            update_interval,
+        let last_update_time = Instant::now() - update_interval;
+
+        Ok(Self { window, cell_size, engine, grid, update_interval, last_update_time })
+    }
+
+    fn update(&mut self) -> Option<()> {
+        let elapsed = self.last_update_time.elapsed();
+
+        if elapsed >= self.update_interval {
+            self.grid = self.engine.update(&self.grid);
+            self.last_update_time = Instant::now();
+            Some(())
+        } else {
+            None
         }
     }
 
-    fn render(&mut self, event: Event) {
-        self.window.draw_2d(&event, |context, graphics, _device| {
+    fn render(&mut self, event: &Event) -> Option<()> {
+        self.window.draw_2d(event, |context, graphics, _device| {
             clear(WHITE, graphics);
 
             for (y, row) in self.grid.iter().enumerate() {
@@ -46,24 +54,26 @@ impl<E: Engine> Renderer<E> {
                     }
                 }
             }
-        });
+        })
     }
 
-    pub fn start(&mut self) {
-        let mut last_update_time = Instant::now() - self.update_interval;
-
-        while let Some(event) = self.window.next() {
-            if let Some(_) = event.update_args() {
-                let elapsed = last_update_time.elapsed();
-                if elapsed >= self.update_interval {
-                    self.grid = self.engine.update(&self.grid);
-                    last_update_time = Instant::now();
-                }
+    fn next_event(&mut self) -> Option<Event> {
+        if let Some(event) = self.window.next() {
+            if event.update_args().is_some() {
+                self.update();
             }
 
-            if let Some(_) = event.render_args() {
-                self.render(event);
+            if event.render_args().is_some() {
+                self.render(&event);
             }
+
+            Some(event)
+        } else {
+            None
         }
+    }
+
+    pub fn start(mut self) {
+        while self.next_event().is_some() { }
     }
 }

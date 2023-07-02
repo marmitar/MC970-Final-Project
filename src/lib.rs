@@ -3,4 +3,3 @@
 pub mod cell;
 pub mod engine;
 pub mod renderer;
-pub mod cli;

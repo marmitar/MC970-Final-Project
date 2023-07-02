@@ -3,10 +3,12 @@ name = "vida"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-rand = { version = "0.8", default-features = true, features = ["default", "small_rng"] }
+clap = { version = "4.3", features = ["default", "derive", "unicode"] }
+rand = { version = "0.8", features = ["default", "small_rng"] }
 rayon = "1.7"
-piston_window = "*"
-clap = { version = "4.3.10", features = ["derive"] }
+piston_window = "0.128"
+
+[profile.release]
+codegen-units = 1
+lto = true

@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter, Result, Write};
+use std::fmt::{self, Display, Formatter, Write};
+
+use rand::Rng;
+use rand::distributions::{Distribution, Standard};
 
 mod grid;
 
@@ -32,10 +35,22 @@ impl Cell {
 
 impl Display for Cell {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Dead => f.write_char('D'),
             Self::Live => f.write_char('L'),
+        }
+    }
+}
+
+impl Distribution<Cell> for Standard {
+    #[inline]
+    #[must_use]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Cell {
+        if <Self as Distribution<bool>>::sample(self, rng) {
+            Cell::Live
+        } else {
+            Cell::Dead
         }
     }
 }

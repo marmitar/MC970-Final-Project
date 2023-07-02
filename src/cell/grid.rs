@@ -1,10 +1,18 @@
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops::{Index, IndexMut};
 
+use rand::{Fill, Rng, SeedableRng};
+use rand::rngs::SmallRng;
+
+use rayon::iter::IntoParallelIterator;
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
+
 use super::Cell;
 
 pub type Iter<'a> =  std::slice::ChunksExact<'a, Cell>;
 pub type IterMut<'a> = std::slice::ChunksExactMut<'a, Cell>;
+pub type ParIter<'a> = rayon::slice::ChunksExact<'a, Cell>;
+pub type ParIterMut<'a> = rayon::slice::ChunksExactMut<'a, Cell>;
 
 /// A 2D matrix representing the current state in Conway's Game of Life.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,6 +44,22 @@ impl Grid {
         let cells = rows.checked_mul(columns).expect("number of cells overflows usize");
 
         Self { cells: vec![cell; cells].into(), columns }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn random(rows: usize, columns: usize) -> Self {
+        let mut rng = SmallRng::from_entropy();
+        Self::random_with(rows, columns, &mut rng)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn random_with<R: Rng + ?Sized>(rows: usize, columns: usize, rng: &mut R) -> Self {
+        let mut grid = Self::new(rows, columns);
+        grid.try_fill(rng).unwrap();
+
+        grid
     }
 
     #[inline]
@@ -299,6 +323,28 @@ impl<'a> IntoIterator for &'a mut Grid {
     }
 }
 
+impl<'a> IntoParallelIterator for &'a Grid {
+    type Item = &'a [Cell];
+    type Iter = ParIter<'a>;
+
+    #[inline]
+    #[must_use]
+    fn into_par_iter(self) -> Self::Iter {
+        self.cells.par_chunks_exact(self.columns)
+    }
+}
+
+impl<'a> IntoParallelIterator for &'a mut Grid {
+    type Item = &'a mut [Cell];
+    type Iter = ParIterMut<'a>;
+
+    #[inline]
+    #[must_use]
+    fn into_par_iter(self) -> Self::Iter {
+        self.cells.par_chunks_exact_mut(self.columns)
+    }
+}
+
 impl Display for Grid {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for row in self.iter() {
@@ -306,6 +352,16 @@ impl Display for Grid {
                 write!(f, "{cell}")?
             }
             f.write_char('\n')?
+        }
+        Ok(())
+    }
+}
+
+impl Fill for Grid {
+    #[inline]
+    fn try_fill<R: Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
+        for cell in self.cells.iter_mut() {
+            *cell = rng.gen()
         }
         Ok(())
     }
@@ -367,5 +423,28 @@ mod tests {
                 assert_eq!(grid[row][col], grid[(row, col)])
             }
         }
+    }
+
+    #[test]
+    pub fn parallel_mutation() {
+        use rayon::prelude::*;
+
+        let mut grid = Grid::new_with(5, 10, Cell::Live);
+        grid.par_iter_mut().for_each(|row| {
+            row.par_iter_mut().for_each(|cell|  {
+                if cell.is_live() {
+                    *cell = Cell::Dead
+                } else {
+                    *cell = Cell::Live
+                }
+            })
+        });
+
+        let dead_cells = grid.par_iter()
+            .flat_map(|row| row.par_iter())
+            .filter(|cell| cell.is_dead())
+            .count();
+
+        assert_eq!(dead_cells, grid.cells());
     }
 }

@@ -38,7 +38,7 @@ impl<E: Engine> Renderer<E> {
             let start = Instant::now();
             self.grid = self.engine.update(&self.grid);
             let elapsed = start.elapsed();
-            eprintln!("{:?}", elapsed);
+            println!("{:?}", elapsed);
 
             self.last_update_time = Instant::now();
             Some(())
@@ -69,18 +69,29 @@ impl<E: Engine> Renderer<E> {
         })
     }
 
-    fn next_event(&mut self) -> Option<Event> {
+    fn next_event(&mut self) -> Option<bool> {
         let event = self.window.next()?;
+        let mut updated = false;
 
         if event.update_args().is_some() {
-            self.update();
+            updated = self.update().is_some();
         }
 
         if event.render_args().is_some() {
             self.render(&event);
         }
 
-        Some(event)
+        Some(updated)
+    }
+
+    pub fn next_update(&mut self) -> Option<()> {
+        loop {
+            match self.next_event() {
+                Some(true) => return Some(()),
+                Some(false) => continue,
+                None => return None
+            }
+        }
     }
 
     pub fn start(mut self) {
